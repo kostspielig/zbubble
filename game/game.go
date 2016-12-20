@@ -23,6 +23,7 @@ var (
 	imagePlayer        *ebiten.Image
 	imagePlayerFlip    *ebiten.Image
 	currentImagePlayer *ebiten.Image
+	imageArrow         *ebiten.Image
 )
 
 func init() {
@@ -37,18 +38,20 @@ func init() {
 		panic(err)
 	}
 	currentImagePlayer = imagePlayer
+
+	imageArrow, _, err = ebitenutil.NewImageFromFile("images/arrow_s.png", ebiten.FilterNearest)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func Update(screen *ebiten.Image) error {
 	// Fill the screen with #FF0000 color
 	screen.Fill(blue)
-	// Create an 16x16 image
-	floor, _ := ebiten.NewImage(WinX, 40, ebiten.FilterNearest)
 
-	// Fill the square with the white color
+	floor, _ := ebiten.NewImage(WinX, 40, ebiten.FilterNearest)
 	floor.Fill(orange)
 
-	// Create an empty option struct
 	fopts := &ebiten.DrawImageOptions{}
 	fopts.GeoM.Translate(0, 224)
 
@@ -57,18 +60,24 @@ func Update(screen *ebiten.Image) error {
 	opts := &ebiten.DrawImageOptions{}
 
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
-		posX += 2
+		if posX < WinX-30 {
+			posX += 2
+		}
 		currentImagePlayer = imagePlayerFlip
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		posX -= 2
+		if posX > 10 {
+			posX -= 2
+		}
 		currentImagePlayer = imagePlayer
 	}
 
-	opts.GeoM.Translate(posX, posY)
+	if ebiten.IsKeyPressed(ebiten.KeyBackspace) {
+		// TODO : show arrow
+	}
 
-	// Draw the square image to the screen with an empty option
+	opts.GeoM.Translate(posX, posY)
 	screen.DrawImage(currentImagePlayer, opts)
 
 	if err := ebitenutil.DebugPrint(screen, "zBubble"); err != nil {
