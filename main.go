@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	if err := ebiten.Run(game.Update, game.WinX, game.WinY, 2, "Hello zalandooo!"); err != nil {
+	if err := ebiten.Run(game.Update, game.WinX, game.WinY, 3, "Hello zalandooo!"); err != nil {
 		log.Fatal(err)
 	}
 }

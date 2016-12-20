@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	WinX = 500
-	WinY = 400
+	WinX = 320
+	WinY = 240
 )
 
 var (
@@ -16,10 +16,14 @@ var (
 	orange = color.NRGBA{0xff, 0x69, 0x00, 0xff}
 
 	posX float64 = 64
-	posY float64 = 330
+	posY float64 = 200
 )
 
-var imagePlayer *ebiten.Image
+var (
+	imagePlayer        *ebiten.Image
+	imagePlayerFlip    *ebiten.Image
+	currentImagePlayer *ebiten.Image
+)
 
 func init() {
 	var err error
@@ -27,6 +31,12 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+	imagePlayerFlip, _, err = ebitenutil.NewImageFromFile("images/monkey_sf.png", ebiten.FilterNearest)
+	if err != nil {
+		panic(err)
+	}
+	currentImagePlayer = imagePlayer
 }
 
 func Update(screen *ebiten.Image) error {
@@ -40,26 +50,26 @@ func Update(screen *ebiten.Image) error {
 
 	// Create an empty option struct
 	fopts := &ebiten.DrawImageOptions{}
-	fopts.GeoM.Translate(0, 360)
+	fopts.GeoM.Translate(0, 224)
 
 	screen.DrawImage(floor, fopts)
 
 	opts := &ebiten.DrawImageOptions{}
 
-	// When the "right arrow key" is pressed..
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
 		posX += 2
+		currentImagePlayer = imagePlayerFlip
 	}
 
-	// When the "left arrow key" is pressed..
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
 		posX -= 2
+		currentImagePlayer = imagePlayer
 	}
 
 	opts.GeoM.Translate(posX, posY)
 
 	// Draw the square image to the screen with an empty option
-	screen.DrawImage(imagePlayer, opts)
+	screen.DrawImage(currentImagePlayer, opts)
 
 	if err := ebitenutil.DebugPrint(screen, "zBubble"); err != nil {
 		return err
