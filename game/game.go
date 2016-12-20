@@ -12,22 +12,38 @@ const (
 )
 
 var (
-	background = color.NRGBA{0xff, 0x69, 0x00, 0xff}
+	blue   = color.NRGBA{0x00, 0xad, 0xef, 0xff}
+	orange = color.NRGBA{0xff, 0x69, 0x00, 0xff}
 
 	posX float64 = 64
-	posY float64 = 360
+	posY float64 = 330
 )
+
+var imagePlayer *ebiten.Image
+
+func init() {
+	var err error
+	imagePlayer, _, err = ebitenutil.NewImageFromFile("images/monkey_s.png", ebiten.FilterNearest)
+	if err != nil {
+		panic(err)
+	}
+}
 
 func Update(screen *ebiten.Image) error {
 	// Fill the screen with #FF0000 color
-	screen.Fill(background)
+	screen.Fill(blue)
 	// Create an 16x16 image
-	square, _ := ebiten.NewImage(16, 16, ebiten.FilterNearest)
+	floor, _ := ebiten.NewImage(WinX, 40, ebiten.FilterNearest)
 
 	// Fill the square with the white color
-	square.Fill(color.White)
+	floor.Fill(orange)
 
 	// Create an empty option struct
+	fopts := &ebiten.DrawImageOptions{}
+	fopts.GeoM.Translate(0, 360)
+
+	screen.DrawImage(floor, fopts)
+
 	opts := &ebiten.DrawImageOptions{}
 
 	// When the "right arrow key" is pressed..
@@ -43,7 +59,7 @@ func Update(screen *ebiten.Image) error {
 	opts.GeoM.Translate(posX, posY)
 
 	// Draw the square image to the screen with an empty option
-	screen.DrawImage(square, opts)
+	screen.DrawImage(imagePlayer, opts)
 
 	if err := ebitenutil.DebugPrint(screen, "zBubble"); err != nil {
 		return err
