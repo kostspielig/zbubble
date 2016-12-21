@@ -173,6 +173,33 @@ func (self *state) updateBubbles() {
 	}
 }
 
+func rectangleCollision(r1x, r1y, r1w, r1h, r2x, r2y, r2w, r2h float64) bool {
+	if r1x < r2x+r2w &&
+		r1x+r1w > r2x &&
+		r1y < r2y+r2h &&
+		r1h+r1y > r2y {
+		return true // collision detected!
+	}
+	return false
+}
+
+func (self *state) detectCollisions(screen *ebiten.Image) {
+	bubbles := self.bubbles[:0]
+	for _, b := range self.bubbles {
+		k := bubbleKinds[b.kind]
+		collided := false
+		for _, a := range self.arrows {
+			if rectangleCollision(b.posX, b.posY, k.size, k.size, a.posX, a.posY, 7, WinY) {
+				collided = true
+			}
+		}
+		if !collided {
+			bubbles = append(bubbles, b)
+		}
+	}
+	self.bubbles = bubbles
+}
+
 func (self *state) draw(screen *ebiten.Image) {
 	screen.Fill(blue)
 
@@ -215,6 +242,7 @@ func (self *state) Update(screen *ebiten.Image) error {
 	self.handleInput()
 	self.updateArrows()
 	self.updateBubbles()
+	self.detectCollisions(screen)
 	self.draw(screen)
 
 	return nil
