@@ -1,9 +1,10 @@
 package game
 
 import (
+	"image/color"
+
 	"github.com/hajimehoshi/ebiten"
 	"github.com/hajimehoshi/ebiten/ebitenutil"
-	"image/color"
 )
 
 const (
@@ -13,27 +14,41 @@ const (
 
 type player struct {
 	facingRight bool
+	lastKeyUp   bool
 	posX        float64
 	posY        float64
 }
 
+type arrow struct {
+	posX float64
+	posY float64
+}
+
 type state struct {
 	player player
+	arrow  []*arrow
 }
 
 var (
 	blue   = color.NRGBA{0x00, 0xad, 0xef, 0xff}
 	orange = color.NRGBA{0xff, 0x69, 0x00, 0xff}
-)
 
-var (
 	imagePlayer     *ebiten.Image
 	imagePlayerFlip *ebiten.Image
 	imageArrow      *ebiten.Image
+	imageFloor      *ebiten.Image
 )
 
 func NewGame() state {
-	return state{player{true, 64, 200}}
+	return state{
+		player{true, false, 64, 200},
+		make([]*arrow, 0, 10),
+	}
+}
+
+func (self *arrow) update() bool {
+	self.posY -= 2
+	return self.posY <= 0
 }
 
 func init() {
@@ -52,19 +67,13 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+	imageFloor, _ = ebiten.NewImage(WinX, 40, ebiten.FilterNearest)
+	imageFloor.Fill(orange)
 }
 
 func (self *state) Update(screen *ebiten.Image) error {
-	// Fill the screen with #FF0000 color
 	screen.Fill(blue)
-
-	floor, _ := ebiten.NewImage(WinX, 40, ebiten.FilterNearest)
-	floor.Fill(orange)
-
-	fopts := &ebiten.DrawImageOptions{}
-	fopts.GeoM.Translate(0, 224)
-
-	screen.DrawImage(floor, fopts)
 
 	opts := &ebiten.DrawImageOptions{}
 
@@ -82,9 +91,23 @@ func (self *state) Update(screen *ebiten.Image) error {
 		self.player.facingRight = false
 	}
 
-	if ebiten.IsKeyPressed(ebiten.KeyBackspace) {
-		// TODO : show arrow
+	keyUp := ebiten.IsKeyPressed(ebiten.KeyUp)
+	if !self.player.lastKeyUp && keyUp {
+		self.arrow = append(self.arrow, &arrow{self.player.posX + 8, WinY - 30})
 	}
+	self.player.lastKeyUp = keyUp
+
+	arrows := self.arrow[:0]
+	for _, arrow := range self.arrow {
+		dead := arrow.update()
+		if !dead {
+			arrows = append(arrows, arrow)
+			o := &ebiten.DrawImageOptions{}
+			o.GeoM.Translate(arrow.posX, arrow.posY)
+			screen.DrawImage(imageArrow, o)
+		}
+	}
+	self.arrow = arrows
 
 	opts.GeoM.Translate(self.player.posX, self.player.posY)
 	if self.player.facingRight {
@@ -92,8 +115,9 @@ func (self *state) Update(screen *ebiten.Image) error {
 	} else {
 		screen.DrawImage(imagePlayer, opts)
 	}
-	if err := ebitenutil.DebugPrint(screen, "zBubble"); err != nil {
-		return err
-	}
+
+	fopts := &ebiten.DrawImageOptions{}
+	fopts.GeoM.Translate(0, 224)
+	screen.DrawImage(imageFloor, fopts)
 	return nil
 }
