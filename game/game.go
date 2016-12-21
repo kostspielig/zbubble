@@ -2,6 +2,7 @@ package game
 
 import (
 	"image/color"
+	"strconv"
 
 	"github.com/hajimehoshi/ebiten"
 	"github.com/hajimehoshi/ebiten/ebitenutil"
@@ -15,18 +16,23 @@ const (
 type player struct {
 	facingRight bool
 	lastKeyUp   bool
-	posX        float64
-	posY        float64
+	posX, posY  float64
 }
 
 type arrow struct {
-	posX float64
-	posY float64
+	posX, posY float64
+}
+
+type bubble struct {
+	posX, posY     float64
+	speedX, speedY float64
+	size           int
 }
 
 type state struct {
-	player player
-	arrow  []*arrow
+	player  player
+	arrows  []*arrow
+	bubbles []*bubble
 }
 
 var (
@@ -37,12 +43,14 @@ var (
 	imagePlayerFlip *ebiten.Image
 	imageArrow      *ebiten.Image
 	imageFloor      *ebiten.Image
+	imageBubble     []*ebiten.Image
 )
 
 func NewGame() state {
 	return state{
 		player{true, false, 64, 200},
 		make([]*arrow, 0, 10),
+		[]*bubble{{100, 120, 1, 0, 0}, {200, 120, 1, 0, 0}},
 	}
 }
 
@@ -68,6 +76,13 @@ func init() {
 		panic(err)
 	}
 
+	imageBubble = make([]*ebiten.Image, 2)
+	for k, _ := range imageBubble {
+		imageBubble[k], _, err = ebitenutil.NewImageFromFile("images/box_"+strconv.Itoa(k)+".png", ebiten.FilterNearest)
+		if err != nil {
+			panic(err)
+		}
+	}
 	imageFloor, _ = ebiten.NewImage(WinX, 40, ebiten.FilterNearest)
 	imageFloor.Fill(orange)
 }
@@ -87,7 +102,7 @@ func (self *player) moveLeft() {
 }
 
 func (self *state) throwArrow(p player) {
-	self.arrow = append(self.arrow, &arrow{p.posX + 8, WinY - 30})
+	self.arrows = append(self.arrows, &arrow{p.posX + 8, WinY - 30})
 }
 
 func (self *state) handleInput() {
@@ -107,20 +122,35 @@ func (self *state) handleInput() {
 }
 
 func (self *state) updateArrows() {
-	arrows := self.arrow[:0]
-	for _, arrow := range self.arrow {
+	arrows := self.arrows[:0]
+	for _, arrow := range self.arrows {
 		if dead := arrow.update(); !dead {
 			arrows = append(arrows, arrow)
 		}
 	}
-	self.arrow = arrows
+	self.arrows = arrows
+}
+
+func (self *state) updateBubbles() {
+	for _, bubble := range self.bubbles {
+		bubble.posX += bubble.speedX
+		bubble.posY += bubble.speedY
+		if bubble.posY >= self.player.posY {
+			bubble.speedY = -bubble.speedY
+		} else {
+			bubble.speedY += 0.2
+		}
+		if bubble.posX >= WinX-27 || bubble.posX <= 0 {
+			bubble.speedX = -bubble.speedX
+		}
+	}
 }
 
 func (self *state) draw(screen *ebiten.Image) {
 	screen.Fill(blue)
 
 	// Draw arrows
-	for _, arrow := range self.arrow {
+	for _, arrow := range self.arrows {
 		o := &ebiten.DrawImageOptions{}
 		o.GeoM.Translate(arrow.posX, arrow.posY)
 		screen.DrawImage(imageArrow, o)
@@ -135,6 +165,13 @@ func (self *state) draw(screen *ebiten.Image) {
 		screen.DrawImage(imagePlayer, opts)
 	}
 
+	// Draw bubbles
+	for _, bubble := range self.bubbles {
+		o := &ebiten.DrawImageOptions{}
+		o.GeoM.Translate(bubble.posX, bubble.posY)
+		screen.DrawImage(imageBubble[bubble.size], o)
+	}
+
 	// Draw floor
 	fopts := &ebiten.DrawImageOptions{}
 	fopts.GeoM.Translate(0, 224)
@@ -146,6 +183,7 @@ func (self *state) draw(screen *ebiten.Image) {
 func (self *state) Update(screen *ebiten.Image) error {
 	self.handleInput()
 	self.updateArrows()
+	self.updateBubbles()
 	self.draw(screen)
 
 	return nil
