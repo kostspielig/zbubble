@@ -30,12 +30,14 @@ type bubble struct {
 }
 
 type bubbleKind struct {
-	imageIndex int
-	scale      float64
-	size       float64
-	speedX     float64
-	gravity    float64
-	bounce     float64
+	next        int
+	imageIndex  int
+	scale       float64
+	size        float64
+	speedX      float64
+	gravity     float64
+	bounce      float64
+	spawnBounce float64
 }
 
 type state struct {
@@ -55,16 +57,16 @@ var (
 	imageBubble     []*ebiten.Image
 
 	bubbleKinds []bubbleKind = []bubbleKind{
-		{0, 1, 27, 1, 0.2, 5},
-		{0, 2, 54, 1, 0.2, 7},
-		{1, 1, 25, 1, 0.2, 6},
-		{1, 2, 50, 1, 0.2, 8},
+		{-1, 0, 1, 27, 1, 0.2, 5, 5},
+		{0, 0, 2, 54, 1, 0.2, 7, 5},
+		{-1, 1, 1, 25, 1, 0.2, 6, 5},
+		{2, 1, 2, 50, 1, 0.2, 8, 5},
 	}
 )
 
 func newBubble(kind int, x, y float64, dir float64) *bubble {
 	k := bubbleKinds[kind]
-	return &bubble{x, y, dir * k.speedX, 0, kind}
+	return &bubble{x, y, dir * k.speedX, -k.spawnBounce, kind}
 }
 
 func NewGame() state {
@@ -185,18 +187,28 @@ func rectangleCollision(r1x, r1y, r1w, r1h, r2x, r2y, r2w, r2h float64) bool {
 
 func (self *state) detectCollisions(screen *ebiten.Image) {
 	bubbles := self.bubbles[:0]
+	newBubbles := make([]*bubble, 0)
 	for _, b := range self.bubbles {
 		k := bubbleKinds[b.kind]
 		collided := false
+		arrows := self.arrows[:0]
 		for _, a := range self.arrows {
 			if rectangleCollision(b.posX, b.posY, k.size, k.size, a.posX, a.posY, 7, WinY) {
 				collided = true
+			} else {
+				arrows = append(arrows, a)
 			}
 		}
+		self.arrows = arrows
 		if !collided {
 			bubbles = append(bubbles, b)
+		} else if k.next != -1 {
+			newBubbles = append(newBubbles,
+				newBubble(k.next, b.posX, b.posY, -1),
+				newBubble(k.next, b.posX, b.posY, 1))
 		}
 	}
+	bubbles = append(bubbles, newBubbles...)
 	self.bubbles = bubbles
 }
 
