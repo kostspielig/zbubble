@@ -26,7 +26,16 @@ type arrow struct {
 type bubble struct {
 	posX, posY     float64
 	speedX, speedY float64
-	size           int
+	kind           int
+}
+
+type bubbleKind struct {
+	imageIndex int
+	scale      float64
+	size       float64
+	speedX     float64
+	gravity    float64
+	bounce     float64
 }
 
 type state struct {
@@ -44,13 +53,30 @@ var (
 	imageArrow      *ebiten.Image
 	imageFloor      *ebiten.Image
 	imageBubble     []*ebiten.Image
+
+	bubbleKinds []bubbleKind = []bubbleKind{
+		{0, 1, 27, 1, 0.2, 5},
+		{0, 2, 54, 1, 0.2, 7},
+		{1, 1, 25, 1, 0.2, 6},
+		{1, 2, 50, 1, 0.2, 8},
+	}
 )
+
+func newBubble(kind int, x, y float64, dir float64) *bubble {
+	k := bubbleKinds[kind]
+	return &bubble{x, y, dir * k.speedX, 0, kind}
+}
 
 func NewGame() state {
 	return state{
 		player{true, false, 64, 200},
 		make([]*arrow, 0, 10),
-		[]*bubble{{100, 120, 1, 0, 0}, {200, 120, 1, 0, 0}},
+		[]*bubble{
+			newBubble(0, 100, 120, 1),
+			newBubble(1, 200, 120, -1),
+			newBubble(2, 150, 120, 1),
+			newBubble(3, 250, 120, -1),
+		},
 	}
 }
 
@@ -133,14 +159,15 @@ func (self *state) updateArrows() {
 
 func (self *state) updateBubbles() {
 	for _, bubble := range self.bubbles {
+		k := bubbleKinds[bubble.kind]
 		bubble.posX += bubble.speedX
 		bubble.posY += bubble.speedY
 		if bubble.posY >= self.player.posY {
-			bubble.speedY = -bubble.speedY
+			bubble.speedY = -k.bounce
 		} else {
-			bubble.speedY += 0.2
+			bubble.speedY += k.gravity
 		}
-		if bubble.posX >= WinX-27 || bubble.posX <= 0 {
+		if bubble.posX >= WinX-k.size || bubble.posX <= 0 {
 			bubble.speedX = -bubble.speedX
 		}
 	}
@@ -168,8 +195,12 @@ func (self *state) draw(screen *ebiten.Image) {
 	// Draw bubbles
 	for _, bubble := range self.bubbles {
 		o := &ebiten.DrawImageOptions{}
+		k := bubbleKinds[bubble.kind]
+		o.GeoM.Translate(-k.size/k.scale, -k.size/k.scale)
+		o.GeoM.Scale(k.scale, k.scale)
+		o.GeoM.Translate(k.size, k.size/k.scale)
 		o.GeoM.Translate(bubble.posX, bubble.posY)
-		screen.DrawImage(imageBubble[bubble.size], o)
+		screen.DrawImage(imageBubble[k.imageIndex], o)
 	}
 
 	// Draw floor
