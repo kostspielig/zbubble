@@ -72,43 +72,62 @@ func init() {
 	imageFloor.Fill(orange)
 }
 
-func (self *state) Update(screen *ebiten.Image) error {
-	screen.Fill(blue)
+func (self *player) moveRight() {
+	if self.posX < WinX-30 {
+		self.posX += 2
+	}
+	self.facingRight = true
+}
 
-	opts := &ebiten.DrawImageOptions{}
+func (self *player) moveLeft() {
+	if self.posX > 10 {
+		self.posX -= 2
+	}
+	self.facingRight = false
+}
 
+func (self *state) throwArrow(p player) {
+	self.arrow = append(self.arrow, &arrow{p.posX + 8, WinY - 30})
+}
+
+func (self *state) handleInput() {
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
-		if self.player.posX < WinX-30 {
-			self.player.posX += 2
-		}
-		self.player.facingRight = true
+		self.player.moveRight()
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		if self.player.posX > 10 {
-			self.player.posX -= 2
-		}
-		self.player.facingRight = false
+		self.player.moveLeft()
 	}
 
 	keyUp := ebiten.IsKeyPressed(ebiten.KeyUp)
 	if !self.player.lastKeyUp && keyUp {
-		self.arrow = append(self.arrow, &arrow{self.player.posX + 8, WinY - 30})
+		self.throwArrow(self.player)
 	}
 	self.player.lastKeyUp = keyUp
+}
 
+func (self *state) updateArrows() {
 	arrows := self.arrow[:0]
 	for _, arrow := range self.arrow {
-		dead := arrow.update()
-		if !dead {
+		if dead := arrow.update(); !dead {
 			arrows = append(arrows, arrow)
-			o := &ebiten.DrawImageOptions{}
-			o.GeoM.Translate(arrow.posX, arrow.posY)
-			screen.DrawImage(imageArrow, o)
 		}
 	}
 	self.arrow = arrows
+}
 
+func (self *state) draw(screen *ebiten.Image) {
+	screen.Fill(blue)
+
+	// Draw arrows
+	for _, arrow := range self.arrow {
+		o := &ebiten.DrawImageOptions{}
+		o.GeoM.Translate(arrow.posX, arrow.posY)
+		screen.DrawImage(imageArrow, o)
+	}
+
+	// Draw main player
+	opts := &ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(self.player.posX, self.player.posY)
 	if self.player.facingRight {
 		screen.DrawImage(imagePlayerFlip, opts)
@@ -116,8 +135,18 @@ func (self *state) Update(screen *ebiten.Image) error {
 		screen.DrawImage(imagePlayer, opts)
 	}
 
+	// Draw floor
 	fopts := &ebiten.DrawImageOptions{}
 	fopts.GeoM.Translate(0, 224)
 	screen.DrawImage(imageFloor, fopts)
+
+	ebitenutil.DebugPrint(screen, "zBubble")
+}
+
+func (self *state) Update(screen *ebiten.Image) error {
+	self.handleInput()
+	self.updateArrows()
+	self.draw(screen)
+
 	return nil
 }
