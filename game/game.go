@@ -14,9 +14,10 @@ const (
 )
 
 type player struct {
-	facingRight bool
-	lastKeyUp   bool
-	posX, posY  float64
+	facingRight  bool
+	lastKeyUp    bool
+	lastKeySpace bool
+	posX, posY   float64
 }
 
 type arrow struct {
@@ -41,9 +42,11 @@ type bubbleKind struct {
 }
 
 type state struct {
-	player  player
-	arrows  []*arrow
-	bubbles []*bubble
+	player   player
+	arrows   []*arrow
+	bubbles  []*bubble
+	gameOver bool
+	pause    bool
 }
 
 var (
@@ -62,6 +65,13 @@ var (
 		{-1, 1, 1, 25, 1, 0.2, 6, 5},
 		{2, 1, 2, 50, 1, 0.2, 8, 5},
 	}
+
+	keyMap map[string]ebiten.Key = map[string]ebiten.Key{
+		"pause": ebiten.KeySpace,
+		"right": ebiten.KeyRight,
+		"left":  ebiten.KeyLeft,
+		"shoot": ebiten.KeyUp,
+	}
 )
 
 func newBubble(kind int, x, y float64, dir float64) *bubble {
@@ -71,7 +81,7 @@ func newBubble(kind int, x, y float64, dir float64) *bubble {
 
 func NewGame() state {
 	return state{
-		player{true, false, 64, 200},
+		player{true, false, false, 64, 200},
 		make([]*arrow, 0, 10),
 		[]*bubble{
 			newBubble(0, 100, 120, 1),
@@ -79,6 +89,8 @@ func NewGame() state {
 			newBubble(2, 150, 120, 1),
 			newBubble(3, 250, 120, -1),
 		},
+		false,
+		false,
 	}
 }
 
@@ -134,19 +146,25 @@ func (self *state) throwArrow(p player) {
 }
 
 func (self *state) handleInput() {
-	if ebiten.IsKeyPressed(ebiten.KeyRight) {
+	if !self.pause && ebiten.IsKeyPressed(keyMap["right"]) {
 		self.player.moveRight()
 	}
 
-	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
+	if !self.pause && ebiten.IsKeyPressed(keyMap["left"]) {
 		self.player.moveLeft()
 	}
 
-	keyUp := ebiten.IsKeyPressed(ebiten.KeyUp)
+	keyUp := ebiten.IsKeyPressed(keyMap["shoot"])
 	if !self.player.lastKeyUp && keyUp {
 		self.throwArrow(self.player)
 	}
 	self.player.lastKeyUp = keyUp
+
+	keySpace := ebiten.IsKeyPressed(keyMap["pause"])
+	if !self.player.lastKeySpace && keySpace {
+		self.pause = !self.pause
+	}
+	self.player.lastKeySpace = keySpace
 }
 
 func (self *state) updateArrows() {
@@ -186,6 +204,7 @@ func rectangleCollision(r1x, r1y, r1w, r1h, r2x, r2y, r2w, r2h float64) bool {
 }
 
 func (self *state) detectCollisions(screen *ebiten.Image) {
+	// Collision between arrows and bubbles
 	bubbles := self.bubbles[:0]
 	newBubbles := make([]*bubble, 0)
 	for _, b := range self.bubbles {
@@ -210,11 +229,19 @@ func (self *state) detectCollisions(screen *ebiten.Image) {
 	}
 	bubbles = append(bubbles, newBubbles...)
 	self.bubbles = bubbles
+
+	// Collision between bubbles and the player
+	for _, b := range self.bubbles {
+		k := bubbleKinds[b.kind]
+		if rectangleCollision(b.posX, b.posY, k.size, k.size, self.player.posX, self.player.posY, 20, 20) {
+			self.gameOver = true
+		}
+	}
+
 }
 
 func (self *state) draw(screen *ebiten.Image) {
 	screen.Fill(blue)
-
 	// Draw arrows
 	for _, arrow := range self.arrows {
 		o := &ebiten.DrawImageOptions{}
@@ -251,11 +278,20 @@ func (self *state) draw(screen *ebiten.Image) {
 }
 
 func (self *state) Update(screen *ebiten.Image) error {
-	self.handleInput()
-	self.updateArrows()
-	self.updateBubbles()
-	self.detectCollisions(screen)
+
+	if !self.gameOver {
+		self.handleInput()
+
+		if !self.pause {
+			self.updateArrows()
+			self.updateBubbles()
+			self.detectCollisions(screen)
+		}
+	}
 	self.draw(screen)
 
+	if self.gameOver {
+		ebitenutil.DebugPrint(screen, "gameOver")
+	}
 	return nil
 }
