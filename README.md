@@ -25,8 +25,7 @@ go get -u github.com/gopherjs/webgl
 These dependencies might be missing:
 
 ```
-sudo apt-get install freeglut3-dev
-sudo apt-get install libalut-dev
+sudo apt-get install freeglut3-dev libalut-dev
 ```
 
 ### Compile
